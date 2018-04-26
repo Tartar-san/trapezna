@@ -1,17 +1,37 @@
 import cv2
+import imutils
+import numpy as np
+
+from imutils.object_detection import non_max_suppression
+
 
 class PeopleDetector:
 
-    def __init__(self, background_image="assets/background.jpg"):
-        self.background_image = cv2.imread(background_image)
+    def __init__(self, detector_parameters):
+        self.hog = cv2.HOGDescriptor()
+        self.hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
+        self.parameters = detector_parameters
 
-    def detect_people(self, img):
+    def detect_people(self, img, preview=False):
         """
-
         :return: list of boundary boxes
         """
-        pass
+        img = imutils.resize(img, width=min(self.parameters["img_width"], img.shape[1]))
 
+        (rects, weights) = self.hog.detectMultiScale(img, winStride=self.parameters["winStride"],
+                                                     padding=self.parameters["padding"],
+                                                     scale=self.parameters["scale"])
 
-if __name__ == "__main__":
-    pass
+        rects = np.array([[x, y, x + w, y + h] for (x, y, w, h) in rects])
+        pick = non_max_suppression(rects, probs=None, overlapThresh=0.65)
+
+        if preview:
+            for (xA, yA, xB, yB) in pick:
+                cv2.rectangle(img, (xA, yA), (xB, yB), (0, 255, 0), 2)
+            cv2.imshow("Detected people", img)
+            cv2.waitKey()
+
+        return pick
+
+    def count_people(self, img):
+        return len(self.detect_people(img))
